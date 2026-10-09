@@ -1,0 +1,891 @@
+# DealShare – Initial Requirements Backlog (Elicitation Pass 1)
+#
+# Source of truth for the backlog. BACKLOG.md is generated from this file:
+#   python3 tools/build_backlog.py
+#
+# Field reference
+#   id          FR-### functional, NFR-### nonfunctional
+#   type        functional | nonfunctional
+#   category    feature area (functional) or quality attribute (nonfunctional)
+#   epic        grouping used for the backlog
+#   level       high (what the system must do) | low (specification of how)
+#   parent      for low-level items, the high-level requirement they refine
+#   priority    MoSCoW: must | should | could | wont (this release)
+#   status      proposed | deferred | blocked (waiting on an open question)
+#   risk        low | medium | high  – expected volatility / implementation risk
+#   source      client statement it came from (T1–T6, see docs/elicitation-transcript.md)
+#               "inferred" = implied by the client but not stated outright
+#   depends_on  requirement IDs that must exist first
+#   blocked_by  open question IDs (docs/open-questions.md) that must be resolved
+#   story       user story
+#   acceptance  measurable acceptance criteria
+
+epics:
+  ACC: Accounts & Profiles
+  POST: Deal Posting
+  CAT: Product Catalog & Matching
+  VAR: Variants & Condition
+  DISC: Discovery (Home, Search, Follow)
+  COMM: Community Quality & Moderation
+  AFF: Affiliate & Monetization
+  TRUST: Trust & Disclosure
+  HIST: Price History
+  NFR: Nonfunctional
+
+requirements:
+
+  # ---------------------------------------------------------------- ACC
+  - id: FR-001
+    title: User registration and sign-in
+    type: functional
+    category: accounts
+    epic: ACC
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: inferred (T2, T5 – following, reputation and payouts all require accounts)
+    depends_on: []
+    story: As a shopper, I want to create an account so that I can post deals, vote, and follow people.
+    acceptance:
+      - A visitor can register with email + password or a third-party sign-in provider.
+      - Anonymous visitors can browse and search but cannot post, vote, or flag.
+
+  - id: FR-002
+    title: Public user profile
+    type: functional
+    category: accounts
+    epic: ACC
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T2 ("if someone always finds great camping gear deals")
+    depends_on: [FR-001]
+    story: As a shopper, I want to see a poster's history and reputation so that I can decide whether to trust them.
+    acceptance:
+      - Profile shows the user's posts, reputation score, trust level, and any declared affiliations.
+
+  # ---------------------------------------------------------------- POST
+  - id: FR-010
+    title: Create a deal post from a URL
+    type: functional
+    category: posting
+    epic: POST
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T2 ("someone finds a deal, pastes the link, puts in the price and the store")
+    depends_on: [FR-001]
+    story: As a poster, I want to share a deal by pasting a product link so that sharing takes almost no effort.
+    acceptance:
+      - Input is a product URL. Output is a draft post pre-filled with whatever the system could extract.
+      - The draft is published only after the user confirms it.
+
+  - id: FR-011
+    title: Automatic extraction of listing details
+    type: functional
+    category: posting
+    epic: POST
+    level: high
+    priority: must
+    status: proposed
+    risk: high
+    source: T3, T4
+    depends_on: [FR-010]
+    blocked_by: [OQ-04, OQ-07]
+    story: As a poster, I want the site to fill in the product name, image, store and price automatically so that I don't have to type them.
+    acceptance:
+      - Given a URL, the system returns title, image, store, current price and any product identifiers it can find, each with a confidence value.
+      - Extraction never blocks posting. On failure, it falls back to FR-012.
+
+  - id: FR-012
+    title: Manual fallback fields only when extraction fails
+    type: functional
+    category: posting
+    epic: POST
+    level: low
+    parent: FR-011
+    priority: must
+    status: proposed
+    risk: low
+    source: T3 ("ask the user for a name or a photo on some random boutique site")
+    depends_on: [FR-011]
+    story: As a poster on an unsupported store, I want to enter only the fields the system couldn't find.
+    acceptance:
+      - The form shows only fields whose extraction failed or fell below the confidence threshold.
+      - Required manual fields are limited to product name, price, and store.
+
+  - id: FR-013
+    title: Optional poster write-up and photos
+    type: functional
+    category: posting
+    epic: POST
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T2, T5 ("I own this, here's what's good and bad about it")
+    depends_on: [FR-010]
+    story: As an experienced owner, I want to add my own description and photos so that others benefit from my experience.
+    acceptance:
+      - Posts accept an optional text description (max 2,000 chars) and up to 5 images.
+      - These fields are never required to publish.
+
+  - id: FR-014
+    title: Edit or delete own post
+    type: functional
+    category: posting
+    epic: POST
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: inferred
+    depends_on: [FR-010]
+    story: As a poster, I want to correct or remove my post so that I can fix mistakes.
+    acceptance:
+      - The author can edit the description, photos and price, and can delete the post. Edits are timestamped.
+
+  # ---------------------------------------------------------------- CAT
+  - id: FR-020
+    title: Product page aggregating all deals for one product
+    type: functional
+    category: catalog
+    epic: CAT
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T2 ("you'd have a page for 'that monitor' ... with the best one at the top")
+    depends_on: [FR-010]
+    story: As a shopper, I want to see every deal for a product across stores on one page so that I never miss a better price.
+    acceptance:
+      - Each deal post belongs to exactly one product.
+      - The product page lists active deals from all stores, sorted by lowest price within the selected condition (see FR-032).
+
+  - id: FR-021
+    title: Suggested product match with one-click confirmation
+    type: functional
+    category: catalog
+    epic: CAT
+    level: high
+    priority: must
+    status: proposed
+    risk: high
+    source: T3 ("Looks like this is the LG 27GP850, is that right?")
+    depends_on: [FR-011, FR-020]
+    story: As a poster, I want the site to suggest which product my deal belongs to so that I can file it with one click.
+    acceptance:
+      - After extraction, the system shows its best match plus up to 3 alternatives, and a "this is a new product" option.
+      - Confirming a match requires one click. No model number or SKU entry is ever required.
+
+  - id: FR-022
+    title: Match products by standard identifiers where available
+    type: functional
+    category: catalog
+    epic: CAT
+    level: low
+    parent: FR-021
+    priority: must
+    status: proposed
+    risk: medium
+    source: inferred (T3, T4)
+    depends_on: [FR-011]
+    story: As the system, I want to match on GTIN/UPC, ASIN, or manufacturer part number before fuzzy title matching so that matches are reliable.
+    acceptance:
+      - If an extracted identifier equals one on an existing product, that product is the top suggestion.
+      - Otherwise the system falls back to title/brand similarity matching.
+
+  - id: FR-023
+    title: Duplicate deal detection at post time
+    type: functional
+    category: catalog
+    epic: CAT
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T2 ("five different people post the same deal ... exactly the cluttered coupon-site feel I hate")
+    depends_on: [FR-021]
+    story: As a poster, I want to be told if this deal is already posted so that I upvote it instead of duplicating it.
+    acceptance:
+      - If an active deal exists for the same product, store, condition and price (within 1%), the poster is shown it and offered "upvote existing".
+      - Duplicate deals never appear as separate items in the home feed.
+
+  - id: FR-024
+    title: Flag duplicate products or misfiled deals
+    type: functional
+    category: catalog
+    epic: CAT
+    level: high
+    priority: should
+    status: proposed
+    risk: medium
+    source: T3 ("someone flags 'these two product pages are the same thing'")
+    depends_on: [FR-001, FR-020]
+    story: As a community member, I want to flag duplicate product pages or wrongly filed deals so that the catalog stays clean.
+    acceptance:
+      - Users can flag a product as duplicate of another product, or flag a deal as belonging to a different product or variant.
+      - Flags go to the review queue (FR-057).
+
+  - id: FR-025
+    title: Merge products and move deals
+    type: functional
+    category: catalog
+    epic: CAT
+    level: high
+    priority: should
+    status: blocked
+    risk: high
+    source: T3, T6
+    depends_on: [FR-024]
+    blocked_by: [OQ-01]
+    story: As an authorized user, I want to merge duplicate product pages and move misfiled deals so that each product has one page.
+    acceptance:
+      - Merging moves all deals and variants to the surviving product and redirects the old URL.
+      - Every merge or move is logged and can be undone.
+
+  # ---------------------------------------------------------------- VAR
+  - id: FR-030
+    title: Variant tabs under a parent product
+    type: functional
+    category: catalog
+    epic: VAR
+    level: high
+    priority: must
+    status: proposed
+    risk: high
+    source: T3 ("same shoes in a different color ... 16 gigs instead of 32")
+    depends_on: [FR-020]
+    blocked_by: [OQ-03]
+    story: As a shopper, I want deals for different colors, sizes, or configurations shown as separate tabs on one product page so that I compare like with like.
+    acceptance:
+      - A product may have zero or more variants, each defined by attribute/value pairs (e.g. color=black, ram=16GB).
+      - Each variant tab has its own best-price ranking.
+
+  - id: FR-031
+    title: Suggest variant at post time
+    type: functional
+    category: catalog
+    epic: VAR
+    level: low
+    parent: FR-030
+    priority: should
+    status: blocked
+    risk: high
+    source: T3
+    depends_on: [FR-030, FR-021]
+    blocked_by: [OQ-03]
+    story: As a poster, I want the site to guess which variant my deal is so that I don't have to pick from a long list.
+    acceptance:
+      - The system pre-selects a variant from the extracted data. The poster can change it or add a new variant.
+
+  - id: FR-032
+    title: Deal condition kept separate from best-price ranking
+    type: functional
+    category: catalog
+    epic: VAR
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T3 ("if a refurbished deal sits at the top ... people will feel tricked"), T6
+    depends_on: [FR-020]
+    story: As a shopper, I want refurbished, open-box and used deals labeled and ranked separately so that I'm never misled about the best price.
+    acceptance:
+      - Every deal has a condition of new, refurbished, open-box, or used. The default is new.
+      - The best-price slot compares only deals with the same condition. Non-new deals display a visible condition badge.
+
+  # ---------------------------------------------------------------- DISC
+  - id: FR-040
+    title: Home feed of trending deals
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T2 ("main feed of what's hot right now ... the YouTube home page idea")
+    depends_on: [FR-020, FR-050]
+    story: As a shopper, I want a home page of the hottest current deals so that I can discover deals without searching.
+    acceptance:
+      - The feed ranks active deals by a score combining votes and recency.
+      - Expired deals and duplicates are excluded.
+
+  - id: FR-041
+    title: Category browsing
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T2 ("categories like electronics, home, clothing")
+    depends_on: [FR-020]
+    story: As a shopper, I want to browse deals by category so that I can focus on what I'm shopping for.
+    acceptance:
+      - Every product belongs to at least one category in a hierarchical category list.
+
+  - id: FR-042
+    title: Keyword search
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T2
+    depends_on: [FR-020]
+    story: As a shopper, I want to search for a product by name so that I can check for deals before I buy.
+    acceptance:
+      - Input is a keyword query. Output is matching products, with their best active deal shown on each result.
+
+  - id: FR-043
+    title: Filter and sort results
+    type: functional
+    category: discovery
+    epic: DISC
+    level: low
+    parent: FR-042
+    priority: should
+    status: proposed
+    risk: low
+    source: inferred (developer summary, end of meeting)
+    depends_on: [FR-042, FR-041]
+    story: As a shopper, I want to filter by category, store, price range, discount and condition so that I can narrow results.
+    acceptance:
+      - Filters can be combined. Sort options are price, discount %, popularity, and newest.
+
+  - id: FR-044
+    title: Follow users
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T2 ("I want to see their stuff")
+    depends_on: [FR-001, FR-002]
+    story: As a shopper, I want to follow posters I trust so that their deals reach me.
+    acceptance:
+      - A user can follow or unfollow another user from that user's profile.
+
+  - id: FR-045
+    title: Follow categories
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T2
+    depends_on: [FR-001, FR-041]
+    story: As a shopper, I want to follow categories so that I see deals in areas I care about.
+    acceptance:
+      - A user can follow or unfollow any category.
+
+  - id: FR-046
+    title: Personalized following feed
+    type: functional
+    category: discovery
+    epic: DISC
+    level: high
+    priority: could
+    status: proposed
+    risk: low
+    source: T2
+    depends_on: [FR-044, FR-045, FR-040]
+    story: As a shopper, I want a feed of deals from people and categories I follow.
+    acceptance:
+      - The feed shows active deals from followed users and categories, newest first.
+
+  # ---------------------------------------------------------------- COMM
+  - id: FR-050
+    title: Upvote and downvote deals
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T1 ("good deals rise, dead or junk deals sink"), T6
+    depends_on: [FR-001, FR-010]
+    story: As a shopper, I want to vote on deals so that good deals rise and bad ones sink.
+    acceptance:
+      - Each user can cast at most one vote per deal and can change it.
+
+  - id: FR-051
+    title: User reputation score
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T5 ("new users earn reputation ... from upvotes and accurate posts")
+    depends_on: [FR-050]
+    story: As the platform, I want each user to have a reputation based on the quality of their contributions so that trust can be earned.
+    acceptance:
+      - Reputation rises from upvotes on the user's posts and falls from confirmed spam, fake, or duplicate flags.
+
+  - id: FR-052
+    title: Trust levels that unlock privileges
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: should
+    status: proposed
+    risk: medium
+    source: T5 ("once someone has a track record, they unlock the revenue share")
+    depends_on: [FR-051]
+    blocked_by: [OQ-01]
+    story: As the platform, I want reputation thresholds that unlock privileges such as revenue share and moderation so that bad actors can't exploit them.
+    acceptance:
+      - Trust levels are configurable thresholds on reputation.
+      - Dropping below a threshold revokes the privileges that level grants.
+
+  - id: FR-053
+    title: Report a deal as expired
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T4, T6 ("users clicking 'this deal is dead'")
+    depends_on: [FR-010]
+    blocked_by: [OQ-10]
+    story: As a shopper, I want to mark a deal as dead so that others don't waste time on it.
+    acceptance:
+      - Once the expiry-report threshold (OQ-10) is reached, the deal's status changes to expired.
+
+  - id: FR-054
+    title: Automated deal liveness check
+    type: functional
+    category: community
+    epic: COMM
+    level: low
+    parent: FR-055
+    priority: should
+    status: proposed
+    risk: high
+    source: T4 ("the deal might be dead tomorrow"), T6
+    depends_on: [FR-011, FR-061]
+    story: As the platform, I want to re-check prices on supported stores periodically so that expired deals are caught automatically.
+    acceptance:
+      - Deals from API-supported stores are re-checked at least every 24 hours.
+      - A price increase above the posted price, or an out-of-stock result, marks the deal expired.
+
+  - id: FR-055
+    title: Expired deals hidden from live listings
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T1 ("a deal that died last Tuesday"), T6 ("this was my number one complaint")
+    depends_on: [FR-053, FR-020, FR-040]
+    story: As a shopper, I want expired deals clearly marked and removed from feeds so that everything I see as live really is.
+    acceptance:
+      - Expired deals are excluded from the home feed and from best-price slots.
+      - They stay visible on the product page in a collapsed "past deals" section with an Expired label.
+
+  - id: FR-056
+    title: Report spam, fake, or misleading posts
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T5 ("fake or inflated deals ... spam every product")
+    depends_on: [FR-010, FR-001]
+    story: As a shopper, I want to report fake or spammy posts so that the site stays trustworthy.
+    acceptance:
+      - The report reasons are spam, fake/inflated discount, undisclosed affiliation, and other.
+
+  - id: FR-057
+    title: Moderation review queue
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: should
+    status: blocked
+    risk: medium
+    source: T3, T5
+    depends_on: [FR-056, FR-024]
+    blocked_by: [OQ-01]
+    story: As a moderator, I want one queue of flags and reports so that I can act on them quickly.
+    acceptance:
+      - Moderators can dismiss, remove, merge, move, or penalize. Every action is logged.
+
+  - id: FR-058
+    title: Comments on deals
+    type: functional
+    category: community
+    epic: COMM
+    level: high
+    priority: could
+    status: proposed
+    risk: low
+    source: inferred (T1 "feel like a community, not a coupon dump")
+    depends_on: [FR-010, FR-001]
+    story: As a shopper, I want to comment on a deal so that I can ask questions or share experience.
+    acceptance:
+      - Signed-in users can post threaded comments on any deal.
+
+  # ---------------------------------------------------------------- AFF
+  - id: FR-060
+    title: Affiliate link conversion for outbound clicks
+    type: functional
+    category: monetization
+    epic: AFF
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T4 ("the way this site makes money is affiliate links")
+    depends_on: [FR-010]
+    blocked_by: [OQ-04]
+    story: As the business, I want outbound links to participating stores to carry our affiliate tag so that purchases earn commission.
+    acceptance:
+      - Links to stores in an active affiliate program are rewritten to affiliate links at click time.
+      - Links to non-participating stores pass through unchanged.
+
+  - id: FR-061
+    title: Retailer affiliate/product APIs as the preferred data source
+    type: functional
+    category: monetization
+    epic: AFF
+    level: low
+    parent: FR-011
+    priority: must
+    status: proposed
+    risk: high
+    source: T4 ("official access to product info ... cleaner route than scraping"), developer summary
+    depends_on: [FR-060]
+    blocked_by: [OQ-04, OQ-07]
+    story: As the platform, I want to get product data from official retailer APIs where available so that we're a partner to stores, not a scraper.
+    acceptance:
+      - For stores with an API integration, extraction uses the API.
+      - Page metadata parsing is used only where permitted, and only when no API exists.
+
+  - id: FR-062
+    title: Attribute clicks and conversions to posts
+    type: functional
+    category: monetization
+    epic: AFF
+    level: high
+    priority: should
+    status: proposed
+    risk: medium
+    source: T5
+    depends_on: [FR-060]
+    story: As the business, I want each outbound click and resulting commission tied to the post and poster so that revenue can be shared.
+    acceptance:
+      - Each outbound click records the deal ID, poster ID, and timestamp.
+      - Conversion reports from affiliate networks are matched back to these click records.
+
+  - id: FR-063
+    title: Revenue share for eligible posters
+    type: functional
+    category: monetization
+    epic: AFF
+    level: high
+    priority: should
+    status: blocked
+    risk: high
+    source: T5 ("the YouTube effect")
+    depends_on: [FR-062, FR-052]
+    blocked_by: [OQ-02, OQ-05]
+    story: As a trusted poster, I want a share of the commission my deals earn so that I'm rewarded for quality contributions.
+    acceptance:
+      - Only users at or above the monetization trust level accrue earnings.
+      - The share percentage is configurable (OQ-02).
+
+  - id: FR-064
+    title: Payouts through a third-party provider
+    type: functional
+    category: monetization
+    epic: AFF
+    level: low
+    parent: FR-063
+    priority: should
+    status: blocked
+    risk: medium
+    source: T5 ("I really don't want us holding people's bank info")
+    depends_on: [FR-063]
+    blocked_by: [OQ-08]
+    story: As a trusted poster, I want to get paid through a trusted payment service so that I don't share bank details with the site.
+    acceptance:
+      - Payout onboarding, tax forms, and bank details are handled by the provider.
+      - The platform stores only the provider's account reference.
+
+  - id: FR-065
+    title: Poster earnings dashboard
+    type: functional
+    category: monetization
+    epic: AFF
+    level: high
+    priority: could
+    status: proposed
+    risk: low
+    source: inferred (T5)
+    depends_on: [FR-063]
+    story: As a trusted poster, I want to see clicks, conversions, and earnings per post so that I know what's working.
+    acceptance:
+      - The dashboard shows clicks, conversions, pending earnings, and paid earnings per post and in total.
+
+  - id: FR-066
+    title: Credit rule for duplicate posts of the same deal
+    type: functional
+    category: monetization
+    epic: AFF
+    level: high
+    priority: should
+    status: blocked
+    risk: high
+    source: T5 ("who gets credit? ... that will cause fights"), T6
+    depends_on: [FR-023, FR-062]
+    blocked_by: [OQ-06]
+    story: As a poster, I want a clear, published rule for who earns credit when the same deal is shared by several people so that it's fair.
+    acceptance:
+      - The rule is published in the help center and applied automatically at attribution time.
+
+  # ---------------------------------------------------------------- TRUST
+  - id: FR-070
+    title: Poster affiliation disclosure
+    type: functional
+    category: trust
+    epic: TRUST
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T5, T6 ("people affiliated with the brand ... have to say so")
+    depends_on: [FR-010, FR-002]
+    story: As a shopper, I want to see when a poster is affiliated with the brand or store so that I can judge their post.
+    acceptance:
+      - The post form asks "Are you affiliated with this brand or store?".
+      - A "yes" displays an Affiliated badge on the post and is recorded on the poster's profile.
+
+  - id: FR-071
+    title: Site-wide affiliate disclosure
+    type: functional
+    category: trust
+    epic: TRUST
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: inferred (T4 – affiliate model, legal review)
+    depends_on: [FR-060]
+    story: As a shopper, I want to know the site earns commission on links so that the relationship is transparent.
+    acceptance:
+      - A disclosure statement appears on every page that contains affiliate links.
+
+  - id: FR-072
+    title: Flag unverified "was" prices
+    type: functional
+    category: trust
+    epic: TRUST
+    level: high
+    priority: could
+    status: proposed
+    risk: medium
+    source: T5 ("'70% off!' on something that was never really full price")
+    depends_on: [FR-080]
+    story: As a shopper, I want inflated "original price" claims flagged so that I'm not fooled by fake discounts.
+    acceptance:
+      - If the claimed original price exceeds the highest recorded price for that product in the last 90 days, the discount is marked "unverified".
+
+  # ---------------------------------------------------------------- HIST
+  - id: FR-080
+    title: Price history on product pages
+    type: functional
+    category: price-history
+    epic: HIST
+    level: high
+    priority: could
+    status: deferred
+    risk: medium
+    source: T2 ("this was $300 in March, now it's $220"), parked by developer in T3
+    depends_on: [FR-020, FR-054]
+    story: As a shopper, I want to see how a product's price has changed over time so that I know whether a deal is really good.
+    acceptance:
+      - The product page shows a chart of the lowest observed price per day, per variant and condition.
+
+  # ---------------------------------------------------------------- NFR
+  - id: NFR-001
+    title: Posting is fast and low-effort
+    type: nonfunctional
+    category: usability
+    epic: NFR
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T2 ("if it takes more than about 30 seconds, nobody will do it"), T3
+    depends_on: [FR-010, FR-011, FR-021]
+    story: Posting a deal must feel effortless.
+    acceptance:
+      - For a supported store, the only required input is the URL plus a match confirmation.
+      - Median time from paste to publish is 30 seconds or less in usability testing.
+
+  - id: NFR-002
+    title: Mobile-friendly web experience
+    type: nonfunctional
+    category: usability
+    epic: NFR
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T6 ("half my friends shop on their phones ... I don't need an app on day one")
+    depends_on: []
+    story: All core flows must work well on phones.
+    acceptance:
+      - Browse, search, post, vote, and report are fully usable at 360px viewport width with no horizontal scrolling.
+      - A native app is out of scope for v1.
+
+  - id: NFR-003
+    title: Page performance
+    type: nonfunctional
+    category: performance
+    epic: NFR
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T1 ("clean, fast, trustworthy") – target proposed by developer, pending client confirmation (OQ-09)
+    depends_on: []
+    blocked_by: [OQ-09]
+    story: The site must feel fast.
+    acceptance:
+      - Home feed and product pages load in under 2.0 s at the 95th percentile on a simulated 4G connection.
+
+  - id: NFR-004
+    title: Product match accuracy
+    type: nonfunctional
+    category: quality
+    epic: NFR
+    level: high
+    priority: should
+    status: proposed
+    risk: high
+    source: T3 ("I don't want duplicates")
+    depends_on: [FR-021]
+    story: Automatic product suggestions must usually be right.
+    acceptance:
+      - For API-supported stores, the top suggestion is accepted by the poster in at least 90% of posts.
+      - Duplicate product pages make up less than 2% of the catalog (measured monthly).
+
+  - id: NFR-005
+    title: Price freshness and compliance with retailer terms
+    type: nonfunctional
+    category: regulatory
+    epic: NFR
+    level: high
+    priority: must
+    status: proposed
+    risk: medium
+    source: T4 ("strict rules about how you display prices, like how old a price is allowed to be")
+    depends_on: [FR-061]
+    blocked_by: [OQ-04]
+    story: Displayed prices must meet each affiliate program's display rules.
+    acceptance:
+      - Every price shows an "as of" timestamp.
+      - Prices from API stores are refreshed within each program's maximum allowed age.
+
+  - id: NFR-006
+    title: Legal review of data collection
+    type: nonfunctional
+    category: regulatory
+    epic: NFR
+    level: high
+    priority: must
+    status: blocked
+    risk: high
+    source: T4 ("I'd want an actual lawyer to sign off")
+    depends_on: []
+    blocked_by: [OQ-07]
+    story: The way we get product data must be legally reviewed before launch.
+    acceptance:
+      - Counsel has signed off on each data-acquisition method before launch.
+      - Non-API fetching respects robots.txt and store terms of service.
+
+  - id: NFR-007
+    title: Minimal handling of sensitive financial data
+    type: nonfunctional
+    category: security
+    epic: NFR
+    level: high
+    priority: must
+    status: proposed
+    risk: low
+    source: T5, developer summary ("hold as little of that responsibility as possible")
+    depends_on: []
+    story: The platform must avoid storing bank, card, or tax details.
+    acceptance:
+      - No bank account numbers, card numbers, or tax IDs are stored in platform databases. These are held by the payout provider.
+
+  - id: NFR-008
+    title: Pluggable store integrations
+    type: nonfunctional
+    category: maintainability
+    epic: NFR
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: T3, T4 ("every store's page is built differently"), developer summary
+    depends_on: [FR-011]
+    story: Adding support for a new store should not require changes to the core system.
+    acceptance:
+      - Each store integration implements a common adapter interface.
+      - A new adapter can be added and deployed without modifying posting, catalog, or feed code.
+
+  - id: NFR-009
+    title: Abuse resistance for new accounts
+    type: nonfunctional
+    category: security
+    epic: NFR
+    level: high
+    priority: should
+    status: proposed
+    risk: medium
+    source: T5 ("spam every product they can find just to fish for commissions")
+    depends_on: [FR-051]
+    story: Brand-new accounts must not be able to flood the site.
+    acceptance:
+      - Accounts below the first trust level are limited to 5 posts per 24 hours (configurable).
+
+  - id: NFR-010
+    title: Accessibility
+    type: nonfunctional
+    category: accessibility
+    epic: NFR
+    level: high
+    priority: should
+    status: proposed
+    risk: low
+    source: inferred (T3 "my mom would never do that" – broad, non-technical audience)
+    depends_on: []
+    story: The site must be usable by people with disabilities.
+    acceptance:
+      - Core flows meet WCAG 2.1 Level AA.
